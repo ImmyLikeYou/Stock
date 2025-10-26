@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h1>Welcome to your 🩲 Stock Dashboard</h1>
+    
+    <div class="dashboard-cards">
+        <div class="card">
+            <h3>Total Stock</h3>
+            <div class="stat">{{ total_stock }}</div>
+            <span>units</span>
+        </div>
+        <div class="card">
+            <h3>Product Variants</h3>
+            <div class="stat">{{ total_products }}</div>
+            <span>different items</span>
+        </div>
+        <div class="card">
+            <h3>Low Stock Alerts</h3>
+            <div class="stat {{ 'warning' if low_stock_count > 0 else '' }}">{{ low_stock_count }}</div>
+            <span>items (<= 10 units)</span>
+        </div>
+    </div>
+
+    <hr>
+    
+    <h2>Stock by Style</h2>
+    <div style="width: 75%; margin: auto; max-height: 400px;">
+        <canvas id="stockChart"></canvas>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get data from Flask (using 'safe' filter)
+            const labels = {{ graph_labels | safe }};
+            const data = {{ graph_data | safe }};
+
+            const ctx = document.getElementById('stockChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Total Pieces in Stock',
+                        data: data,
+                        backgroundColor: 'rgba(0, 123, 255, 0.5)',
+                        borderColor: 'rgba(0, 123, 255, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    },
+                    responsive: true
+                }
+            });
+        });
+    </script>
+
+    <hr>
+    
+    <h2>Low Stock Items</h2>
+    {% if low_stock_items %}
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Style</th>
+                    <th>Color</th>
+                    <th>Size</th>
+                    <th>Quantity</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in low_stock_items %}
+                <tr>
+                    <td>{{ product.id }}</td>
+                    <td>{{ product.name }}</td>
+                    <td>{{ product.style }}</td>
+                    <td>{{ product.color }}</td>
+                    <td>{{ product.size }}</td>
+                    <td class="low-stock">{{ product.quantity }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No low stock items. Great job!</p>
+    {% endif %}
+    
+{% endblock %}

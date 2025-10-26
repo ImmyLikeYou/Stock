@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h1>Inventory Manager</h1>
+
+    <h2>Current Inventory</h2>
+    
+    <div class="search-container">
+        <label for="searchField" style="font-weight: bold;">Search By:</label>
+        <select id="searchField" class="search-select">
+            <option value="1">Name</option>
+            <option value="2">Style</option>
+            <option value="3">Color</option>
+            <option value="4">Size</option>
+        </select>
+        
+        <input type="text" id="searchInput" class="search-bar" 
+               placeholder="Type to see suggestions..." 
+               list="name-suggestions" 
+               autocomplete="off">
+        
+        <button id="searchButton" class="search-btn">Search</button>
+        <button id="clearSearchButton" class="search-btn search-btn-clear">Clear</button>
+    </div>
+    
+    <datalist id="name-suggestions">
+        {% for name in all_names %}<option value="{{ name }}">{% endfor %}
+    </datalist>
+    <datalist id="style-suggestions">
+        {% for style in all_styles %}<option value="{{ style }}">{% endfor %}
+    </datalist>
+    <datalist id="color-suggestions">
+        {% for color in all_colors %}<option value="{{ color }}">{% endfor %}
+    </datalist>
+    <datalist id="size-suggestions">
+        {% for size in all_sizes %}<option value="{{ size }}">{% endfor %}
+    </datalist>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Style</th>
+                <th>Color</th>
+                <th>Size</th>
+                <th>Quantity (Pieces)</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="inventoryTableBody">
+            {% for product in products %}
+            <tr>
+                <td>{{ product.id }}</td>
+                <td>{{ product.name }}</td>
+                <td>{{ product.style }}</td>
+                <td>{{ product.color }}</td>
+                <td>{{ product.size }}</td>
+                <td class="{{ 'low-stock' if product.quantity <= 10 else '' }}">
+                    {{ product.quantity }}
+                </td>
+                <td>
+                    <form action="/delete" method="POST" onsubmit="return confirm('Are you sure you want to delete this item?');">
+                        <input type="hidden" name="product_id" value="{{ product.id }}">
+                        <input type="submit" value="Delete" class="btn-delete">
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="7">No products in stock yet.</td>
+            </tr>
+            {% endfor %}
+            
+            <tr id="noResultsRow" style="display: none;">
+                <td colspan="7" style="text-align: center; font-style: italic;">No results found.</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <hr>
+
+    <div class="form-tabs">
+        <button class="tab-btn" onclick="showForm('add-form')">Add New Product</button>
+        <button class="tab-btn" onclick="showForm('update-form')">Update Stock</button>
+    </div>
+
+    <div id="add-form" class="form-content">
+        <div class="form-section">
+            <h2>Add New Product Variation</h2>
+            <form action="/add" method="POST">
+                <label for="name">Product Name</label>
+                <input type="text" name="name" placeholder="e.g., Men's Boxer" required>
+                
+                <label for="style">Style</label>
+                <input type="text" name="style" placeholder="e.g., Brief" required>
+
+                <label for="color">Color</label>
+                <input type="text" name="color" placeholder="e.g., Black" required>
+
+                <label for="size">Size</label>
+                <select name="size" id="size" required>
+                    <option value="" disabled selected>-- Select a size --</option>
+                    <option value="F/M">F/M (Free/Medium)</option>
+                    <option value="L">L</option>
+                    <option value="XL">XL</option>
+                    <option value="2L">2L</option>
+                    <option value="3L">3L</option>
+                    <option value="4L">4L</option>
+                    <option value="5L">5L</option>
+                    <option value="6L">6L</option>
+                </select>
+
+                <label for="dozens">Initial Quantity (Dozens)</label>
+                <input type="number" name="dozens" min="0" value="0" required>
+
+                <label for="pieces">(and Pieces)</label>
+                <input type="number" name="pieces" min="0" value="0" required>
+
+                <input type="submit" value="Add Product">
+            </form>
+        </div>
+    </div>
+    
+    <div id="update-form" class="form-content">
+        <div class="form-section">
+            <h2>Update Stock Level</h2>
+            <form action="/update" method="POST">
+                <label for="product_id">Product ID</label>
+                <select name="product_id" required>
+                    <option value="" disabled selected>-- Select a product --</option>
+                    {% for p in products %}
+                        <option value="{{ p.id }}">
+                            ID {{ p.id }}: {{ p.name }} ({{ p.style }}, {{ p.color }}, {{ p.size }})
+                        </option>
+                    {% endfor %}
+                </select>
+                
+                <label for="dozens">Stock Change (Dozens)</label>
+                <input type="number" name="dozens" value="0" placeholder="e.g., 2 or -1" required>
+                <label for="pieces">(and Pieces)</label>
+                <input type="number" name="pieces" value="0" placeholder="e.g., 6 or -3" required>
+
+                <input type="submit" value="Update Stock">
+            </form>
+        </div>
+    </div>
+
+
+    <script>
+        // --- Controls the Add/Update tabs ---
+        function showForm(formId) {
+            var forms = document.getElementsByClassName('form-content');
+            for (var i = 0; i < forms.length; i++) {
+                forms[i].style.display = 'none';
+            }
+            var buttons = document.getElementsByClassName('tab-btn');
+            for (var i = 0; i < buttons.length; i++) {
+                buttons[i].classList.remove('active');
+            }
+            document.getElementById(formId).style.display = 'block';
+            var activeButton = document.querySelector('.tab-btn[onclick="showForm(\'' + formId + '\')"]');
+            activeButton.classList.add('active');
+        }
+
+        // --- Controls the Search button ---
+        function filterTable() {
+            var fieldIndex = document.getElementById('searchField').value;
+            var filterText = document.getElementById('searchInput').value.toUpperCase();
+            var tableBody = document.getElementById('inventoryTableBody');
+            var rows = tableBody.getElementsByTagName('tr');
+            var noResultsRow = document.getElementById('noResultsRow');
+            var resultsFound = false;
+
+            for (var i = 0; i < rows.length; i++) {
+                if (rows[i].id === 'noResultsRow') continue; 
+                var cell = rows[i].getElementsByTagName('td')[fieldIndex];
+                
+                if (cell) {
+                    var cellText = (cell.textContent || cell.innerText).toUpperCase();
+                    if (cellText.indexOf(filterText) > -1) {
+                        rows[i].style.display = "";
+                        resultsFound = true;
+                    } else {
+                        rows[i].style.display = "none";
+                    }
+                }
+            }
+            noResultsRow.style.display = resultsFound ? "none" : "";
+        }
+        
+        // --- Controls the Clear button ---
+        function clearFilter() {
+            document.getElementById('searchInput').value = "";
+            var tableBody = document.getElementById('inventoryTableBody');
+            var rows = tableBody.getElementsByTagName('tr');
+            var noResultsRow = document.getElementById('noResultsRow');
+            
+            for (var i = 0; i < rows.length; i++) {
+                rows[i].style.display = "";
+            }
+            noResultsRow.style.display = "none";
+        }
+        
+        // --- Changes the suggestion list based on the dropdown ---
+        function updateSuggestionList() {
+            var fieldIndex = document.getElementById('searchField').value;
+            var searchInput = document.getElementById('searchInput');
+            
+            if (fieldIndex == '1') { // Name
+                searchInput.setAttribute('list', 'name-suggestions');
+            } else if (fieldIndex == '2') { // Style
+                searchInput.setAttribute('list', 'style-suggestions');
+            } else if (fieldIndex == '3') { // Color
+                searchInput.setAttribute('list', 'color-suggestions');
+            } else if (fieldIndex == '4') { // Size
+                searchInput.setAttribute('list', 'size-suggestions');
+            } else {
+                searchInput.removeAttribute('list');
+            }
+        }
+
+        // --- Main setup script ---
+        document.addEventListener('DOMContentLoaded', function() {
+            // Show the 'Add' form by default
+            showForm('add-form');
+            
+            // Attach functions to search buttons
+            document.getElementById('searchButton').addEventListener('click', filterTable);
+            document.getElementById('clearSearchButton').addEventListener('click', clearFilter);
+            
+            // Attach listener to search dropdown
+            document.getElementById('searchField').addEventListener('change', updateSuggestionList);
+            
+            // Optional: Also search when pressing Enter
+            document.getElementById('searchInput').addEventListener('keyup', function(event) {
+                if (event.key === 'Enter') {
+                    filterTable();
+                }
+            });
+        });
+    </script>
+
+{% endblock %}

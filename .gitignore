@@ -1,0 +1,16 @@
+# Python
+venv/
+*.pyc
+__pycache__/
+
+# PyInstaller
+dist/
+build/
+*.spec
+
+# Database
+*.db
+*.db-journal
+
+# Installer
+Output/
